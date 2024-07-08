@@ -5,55 +5,29 @@
  * @format
  */
 
-import React from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import type {PropsWithChildren} from 'react';
 import {
   SafeAreaView,
-  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   useColorScheme,
   View,
+  Image,
+  ImageRequireSource,
 } from 'react-native';
+import {Linking} from 'react-native';
+import {Camera} from 'react-native-vision-camera';
+import {CONTENT_SPACING, SAFE_AREA_PADDING} from './Constants';
+import {Colors} from 'react-native/Libraries/NewAppScreen';
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+import CameraPage from './Camera';
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+import {GestureHandlerRootView} from 'react-native-gesture-handler';
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const BANNER_IMAGE = require('./Images/11.png') as ImageRequireSource;
 
 function App(): React.JSX.Element {
   const isDarkMode = useColorScheme() === 'dark';
@@ -62,57 +36,103 @@ function App(): React.JSX.Element {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
+  const [cameraPermissionStatus, setCameraPermissionStatus] =
+    useState('not-determined');
+
+  // let cameraPermission = 'not-determined';
+  useEffect(() => {
+    const checkCameraPermission = async () => {
+      console.log(
+        '------------------------------------------------------------------------------------------------',
+      );
+      console.log('camera', Camera);
+      const cameraPermission = await Camera.getCameraPermissionStatus();
+      setCameraPermissionStatus(cameraPermission);
+    };
+    if (Camera) {
+      checkCameraPermission();
+    }
+  }, []);
+
+  const requestCameraPermission = useCallback(async () => {
+    console.log('Requesting camera permission...');
+    const permission = await Camera.requestCameraPermission();
+    console.log(`Camera permission status: ${permission}`);
+
+    if (permission === 'denied') await Linking.openSettings();
+    setCameraPermissionStatus(permission);
+  }, []);
+
+  console.log(`Re-rendering Navigator. Camera: ${cameraPermissionStatus}`);
+
   return (
     <SafeAreaView style={backgroundStyle}>
       <StatusBar
         barStyle={isDarkMode ? 'light-content' : 'dark-content'}
         backgroundColor={backgroundStyle.backgroundColor}
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
+      {cameraPermissionStatus === 'granted' ? (
+        <GestureHandlerRootView style={{flex: 1}}>
+          <CameraPage />
+        </GestureHandlerRootView>
+      ) : (
+        <>
+          <View>
+            <Text>Welcome</Text>
+            <Image source={BANNER_IMAGE} style={styles.banner} />
+            <Text style={styles.welcome}>Welcome to{'\n'}Vision Camera.</Text>
+            <View style={styles.permissionsContainer}>
+              {cameraPermissionStatus !== 'granted' && (
+                <Text style={styles.permissionText}>
+                  Vision Camera needs{' '}
+                  <Text style={styles.bold}>Camera permission</Text>.{' '}
+                  <Text
+                    style={styles.hyperlink}
+                    onPress={requestCameraPermission}>
+                    Grant
+                  </Text>
+                </Text>
+              )}
+            </View>
+          </View>
+        </>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  welcome: {
+    fontSize: 38,
+    fontWeight: 'bold',
+    maxWidth: '80%',
+    color: 'white',
   },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
+  banner: {
+    position: 'absolute',
+    opacity: 0.4,
+    bottom: 0,
+    left: 0,
   },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
+  container: {
+    flex: 1,
+    backgroundColor: 'white',
+    ...SAFE_AREA_PADDING,
   },
-  highlight: {
-    fontWeight: '700',
+  permissionsContainer: {
+    marginTop: CONTENT_SPACING * 2,
+  },
+  permissionText: {
+    fontSize: 17,
+  },
+  hyperlink: {
+    color: '#007aff',
+    fontWeight: 'bold',
+  },
+  bold: {
+    fontWeight: 'bold',
   },
 });
+
 
 export default App;
